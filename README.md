@@ -15,6 +15,16 @@ Follow these instructions:
 
 # Model Polaroid Package
 
+## Polaroid size
+
+* *output_folder*: folder where images will be saved.
+* *steps*: definition of you polaroid. It defines the size of your polaroid which will be of size steps * steps
+* *max_stepsize*: how far you want to look in the defined directions
+* *howmaxstep*: defines the pitch metric:
+    * *absolute*: it goes until $$ steps * direction $$
+    * *boundary*: it goes until $ steps * lambda * direction with lambda $, the minimum value for not being an image anymore (0<x<1)
+    * *adversarial*: it goes until $steps * p * direction with$ p the perturbation norm to be adversarial in this direction. (**Note: mostly useful when using direction of *attack***)
+
 ## Direction
 
 To create the polaroid of your model, two directions have to be chosen.

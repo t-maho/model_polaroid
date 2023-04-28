@@ -2,7 +2,7 @@ import os
 import random
 
 from modelpolaroid.load import get_model
-from modelpolaroid.polaroid import Polaroid
+from modelpolaroid import Polaroid
 from torchvision.io import read_image
 from torchvision import transforms as T
 

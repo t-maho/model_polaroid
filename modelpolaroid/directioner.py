@@ -69,7 +69,6 @@ class Directioner:
             direction.orthogonalize(d)
         return direction
 
-
     def get_normal_direction(self, mean=0, std=1, *args, **kwargs):
         x = torch.zeros(self._shape).to(self.device)
         direction = x.normal_(mean, std)
@@ -101,8 +100,5 @@ class Directioner:
         norm = direction.norm()
         direction /= norm
         print("Attack perturbation norm:", norm.flatten().cpu().numpy())
-        print(adv.min())
-        print(adv.max())
-        print((adv.min() >= 0) * (adv.max() <= 1))
         return Direction(direction, image, adv)
 

@@ -1,1 +1,2 @@
 from modelpolaroid.polaroid import Polaroid
+from modelpolaroid.directioner import Directioner

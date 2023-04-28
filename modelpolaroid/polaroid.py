@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 
 from modelpolaroid.dataset.grid import GridDataset
-from modelpolaroid.directioner import Directioner
+from modelpolaroid.directioner import Directioner, Direction
 
 class Polaroid:
     def __init__(
@@ -19,6 +19,7 @@ class Polaroid:
             origin=None, 
             top_plot=1,
             batch_size=64,
+            verbose=True,
             device=0):
 
         assert howmaxstep in ["boundary", "absolute", "adversarial"]
@@ -38,14 +39,23 @@ class Polaroid:
 
         self.direction1 = None
         self.direction2 = None
-        
+
+    def set_output_folder(self, f):
+        self.output_folder = f
 
     def __call__(self, model, direction1="normal", direction2="normal", direction1_kwargs={}, direction2_kwargs={}):
         # Set directions
         print("Set directions.")
         directioner = Directioner(self.origin.shape, bound=(0, 1), origin=self.origin, device=0)
-        self.direction1 = directioner.get_direction(direction1, **direction1_kwargs)
-        self.direction2 = directioner.get_direction(direction2, former_directions=[self.direction1], **direction2_kwargs)
+        if isinstance(direction1, Direction):
+            self.direction1 = direction1
+        else:
+            self.direction1 = directioner.get_direction(direction1, **direction1_kwargs)
+
+        if isinstance(direction2, Direction):
+            self.direction2 = direction2
+        else:
+            self.direction2 = directioner.get_direction(direction2, former_directions=[self.direction1], **direction2_kwargs)
         
         print("Know when image is out (not in [0, 1]).")
         if self.howmaxstep == "boundary":
@@ -56,7 +66,6 @@ class Polaroid:
                 Xf1 = (self.origin + image_distance * self.direction1.direction).flatten(1)
                 Xf2 = (self.origin + image_distance * self.direction2.direction).flatten(1)
                 is_out = (Xf1.max() >1 or Xf1.min() < 0) and (Xf2.max() >1 or Xf2.min() < 0)
-            print("Image distance: ", image_distance)
             maxstep = self.max_stepsize * image_distance  
         elif self.howmaxstep == "absolute":
             maxstep = self.max_stepsize
@@ -90,10 +99,8 @@ class Polaroid:
         diff_loss = []
         X_min = []
         X_max = []
-        print(self.origin.min())
-        print(self.origin.max())
-        print((self.origin.min() >= 0) * (self.origin.max() <= 1))
-        for X in tqdm.tqdm(data_loader):
+        iterator = tqdm.tqdm(data_loader) if self.verbose else data_loader
+        for X in iterator:
             X = X.to(self.device)
             Xf = X.flatten(1)
             X_min.append(Xf.min(1)[0])
@@ -116,9 +123,6 @@ class Polaroid:
         X_min = torch.cat(X_min, dim=0).cpu().numpy().reshape((self.steps, self.steps))
         X_max = torch.cat(X_max, dim=0).cpu().numpy().reshape((self.steps, self.steps))
         X_exist = (X_min >= 0) * (X_max <= 1)
-        print(X_exist)
-        print(X_exist.sum() / X_exist.size)
-              
 
         self._plot(labels, losses, diff_loss, X_exist)
         self._plot_unique(labels, losses, X_exist)

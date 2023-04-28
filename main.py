@@ -33,16 +33,16 @@ direction2 = "image"
 direction1_kwargs = {"image": images[0], "attack": "di", "model": model}
 direction2_kwargs = {"image": images[0], "attack": "bp", "model": model}
 
-plotter = Polaroid(
+polaroid = Polaroid(
             output_folder=output_dir,
             steps=200, 
             max_stepsize=1.1, 
             howmaxstep="boundary",
             origin=origin, 
             top_plot=3,
-            batch_size=128)
+            batch_size=64)
 
-plotter(
+polaroid(
     model, 
     direction1, 
     direction2, 

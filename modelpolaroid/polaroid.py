@@ -31,6 +31,7 @@ class Polaroid:
         self.top_plot = top_plot
         self.output_folder = output_folder
         self.device = device
+        self.verbose = verbose
 
         if origin is None:
             self.origin = torch.ones((3, 224, 224)).to(device) * 0.5

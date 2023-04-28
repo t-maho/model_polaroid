@@ -1,5 +1,5 @@
 import torch
-from src.attack.surfree.utils import atleast_kdim
+from modelpolaroid.attack.surfree.utils import atleast_kdim
 
 
 def get_init_with_noise(model, X, y):

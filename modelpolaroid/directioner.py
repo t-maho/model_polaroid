@@ -3,10 +3,10 @@ import torch
 
 from torchvision import transforms as T
 
-from src.attack.boundary_projection import BP
-from src.attack.taig import TAIG
-from src.attack.surfree.surfree import SurFree
-from src.attack.input_diversity import DI
+from modelpolaroid.attack.boundary_projection import BP
+from modelpolaroid.attack.taig import TAIG
+from modelpolaroid.attack.surfree.surfree import SurFree
+from modelpolaroid.attack.input_diversity import DI
 
 
 def get_attack_instance(attack_name="surfree"):

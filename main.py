@@ -1,8 +1,8 @@
 import os
 import random
 
-from src.load import get_model
-from src.polaroid import ModelPolaroid
+from modelpolaroid.load import get_model
+from modelpolaroid.polaroid import Polaroid
 from torchvision.io import read_image
 from torchvision import transforms as T
 
@@ -33,7 +33,7 @@ direction2 = "image"
 direction1_kwargs = {"image": images[0], "attack": "di", "model": model}
 direction2_kwargs = {"image": images[0], "attack": "bp", "model": model}
 
-plotter = ModelPolaroid(
+plotter = Polaroid(
             output_folder=output_dir,
             steps=200, 
             max_stepsize=1.1, 

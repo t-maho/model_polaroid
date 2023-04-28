@@ -1,0 +1,1 @@
+from modelpolaroid.polaroid import Polaroid

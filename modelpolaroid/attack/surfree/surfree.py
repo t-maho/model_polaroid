@@ -2,9 +2,9 @@ import math
 import random
 import numpy as np
 import torch
-from src.attack.surfree.attack import get_init_with_noise
-from src.attack.surfree.utils import atleast_kdim
-from src.attack.surfree.dct import dct_2d, idct_2d
+from modelpolaroid.attack.surfree.attack import get_init_with_noise
+from modelpolaroid.attack.surfree.utils import atleast_kdim
+from modelpolaroid.attack.surfree.dct import dct_2d, idct_2d
 
 
 def distance(a, b):

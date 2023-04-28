@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 
 from torch.utils.data import DataLoader
 
-from src.dataset.grid import GridDataset
-from src.directioner import Directioner
+from modelpolaroid.dataset.grid import GridDataset
+from modelpolaroid.directioner import Directioner
 
-class ModelPolaroid:
+class Polaroid:
     def __init__(
             self, 
             output_folder,

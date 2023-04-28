@@ -22,8 +22,11 @@ Follow these instructions:
 * *max_stepsize*: how far you want to look in the defined directions
 * *howmaxstep*: defines the pitch metric:
     * *absolute*: it goes until $steps * direction$
-    * *boundary*: it goes until $steps * \lambda * direction$ with $\lambda$ , the minimum value for not being an image anymore ($0<x<1$)
-    * *adversarial*: it goes until $steps * p * direction$ with p the perturbation norm to be adversarial in this direction. (**Note: mostly useful when using direction of *attack***)
+    * *boundary*: it goes until $steps * \lambda * direction$ with $\lambda$, the minimum value for not being an image anymore ( $0 < x < 1$ )
+    * *adversarial*: it goes until $steps * p * direction$ with $p$, the perturbation norm to be adversarial in this direction. (**Note: mostly useful when using direction of *attack***)
+* *origin*: the origin of you polaroid. It will the center of your polaroid.
+* *top_plot*: you can plot the top-k of your model.
+* *batch_size*
 
 ## Direction
 

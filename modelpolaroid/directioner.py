@@ -24,10 +24,11 @@ def get_attack_instance(attack_name="surfree"):
     
 
 class Direction:
-    def __init__(self, direction, original=None, adv=None):
+    def __init__(self, direction, original=None, adv=None, device=0):
         self.original = original
         self.direction = direction
         self.adversarial = adv
+        self.device = device
 
         if adv is not None and original is not None:
             self._perturbation_norm = (adv - original).norm()
@@ -54,7 +55,7 @@ class Direction:
 
 
 class Directioner:
-    def __init__(self, shape, bound, origin=None, device="cpu", *args, **kwargs):
+    def __init__(self, shape, bound, origin=None, device=0, *args, **kwargs):
         self._origin = origin if origin is not None else torch.zeros(shape).to(device)
         self.device = device
         self._bound = bound
@@ -64,7 +65,6 @@ class Directioner:
     def get_direction(self, dtype="normal", former_directions=[], **kwargs):
         dtype = dtype.lower().strip()
         direction = getattr(self, "get_{}_direction".format(dtype))(**kwargs)    
-
         for d in former_directions:
             direction.orthogonalize(d)
         return direction

@@ -2,17 +2,25 @@ import math
 import os
 import torch
 import tqdm
-import matplotlib.pyplot as plt
+import random
+import numpy as np
 
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+
+import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from modelpolaroid.dataset.grid import GridDataset
 from modelpolaroid.directioner import Directioner, Direction
 
+
+
+cmap_loss = "seismic"
 class Polaroid:
     def __init__(
             self, 
-            output_folder,
+            output_folder_plot=None,
             steps=50, 
             max_stepsize=1.5, 
             howmaxstep="boundary",
@@ -20,6 +28,7 @@ class Polaroid:
             top_plot=1,
             batch_size=64,
             verbose=True,
+            extra_point_to_plot=[],
             device=0):
 
         assert howmaxstep in ["boundary", "absolute", "adversarial"]
@@ -29,9 +38,14 @@ class Polaroid:
         self.howmaxstep = howmaxstep
         self.batch_size = batch_size
         self.top_plot = top_plot
-        self.output_folder = output_folder
+        self.output_folder_plot = output_folder_plot
         self.device = device
         self.verbose = verbose
+        self.dict_label_color = {}
+        self._list_possible_labels_colors = None
+        self.extra_point_to_plot = extra_point_to_plot
+
+        self._softmax = m = nn.Softmax(dim=1)
 
         if origin is None:
             self.origin = torch.ones((3, 224, 224)).to(device) * 0.5
@@ -41,13 +55,16 @@ class Polaroid:
         self.direction1 = None
         self.direction2 = None
 
+    def reset_color_dict_label(self):
+        self.dict_label_color = {}
+
     def set_output_folder(self, f):
-        self.output_folder = f
+        self.output_folder_plot = f
 
     def __call__(self, model, direction1="normal", direction2="normal", direction1_kwargs={}, direction2_kwargs={}):
         # Set directions
         print("Set directions.")
-        directioner = Directioner(self.origin.shape, bound=(0, 1), origin=self.origin, device=0)
+        directioner = Directioner(self.origin.shape, bound=(0, 1), origin=self.origin, device=self.device)
         if isinstance(direction1, Direction):
             self.direction1 = direction1
         else:
@@ -83,7 +100,8 @@ class Polaroid:
                 raise ValueError("Perturbation norm not defined for at least one direction.")
         
             maxstep = maxstep.cpu().item()
-
+        print("Max step size: {}".format(maxstep))
+              
         print("Create dataset.")
         self.dataset = GridDataset(
             self.origin, 
@@ -112,7 +130,12 @@ class Polaroid:
             indices = torch.ones((len(X), max(self.top_plot, 2))).to(self.device).long() * -1
 
             p = model(X).detach()
+            p = self._softmax(p)
             values, indices = torch.topk(p, k=max(self.top_plot, 2), dim=1)
+            if self._list_possible_labels_colors is None:
+                cm = plt.cm.get_cmap("gist_earth", p.shape[1])
+                self._list_possible_labels_colors = [cm(i) for i in range(p.shape[1])]
+                random.shuffle(self._list_possible_labels_colors)
 
             diff_loss.append(values[:, 0] - values[:, 1])
             labels.append(indices[:, :self.top_plot])
@@ -124,54 +147,13 @@ class Polaroid:
         X_min = torch.cat(X_min, dim=0).cpu().numpy().reshape((self.steps, self.steps))
         X_max = torch.cat(X_max, dim=0).cpu().numpy().reshape((self.steps, self.steps))
         X_exist = (X_min >= 0) * (X_max <= 1)
-
-        self._plot(labels, losses, diff_loss, X_exist)
-        self._plot_unique(labels, losses, X_exist)
-
-    def _plot(self, labels, losses, diff_loss, X_exist):
-
-        fig, axs = plt.subplots(self.top_plot, 4, figsize=(6 * self.top_plot, 12))
-        for i in range(0, self.top_plot):
-            axs[i, 0].imshow(labels[:, :, i], cmap="tab20c")
-            axs[i, 0].axis("off")
-            axs[i, 0].set_title("Label {}".format(i))
-
-            img_ax = axs[i, 1].imshow(losses[:, :, i])
-            axs[i, 1].axis("off")
-            axs[i, 1].set_title("Loss {}".format(i))
-            fig.colorbar(img_ax, ax=axs[i, 1])
+        
+        if self.output_folder_plot is not None:
+            self._plot_unique(labels, losses, X_exist)
+        return labels, losses, X_exist
 
 
-            axs[i, 2].imshow(labels[:, :, i] * X_exist, cmap="tab20c")
-            axs[i, 2].axis("off")
-            axs[i, 2].set_title("Label {} (Real Image)".format(i))
-
-            img_ax = axs[i, 3].imshow(losses[:, :, i] * X_exist)
-            axs[i, 3].axis("off")
-            axs[i, 3].set_title("Loss {} (Real Image)".format(i))
-            fig.colorbar(img_ax, ax=axs[i, 3])
-
-        axs = self._add_image_points_to_plot(axs)
-        plt.savefig(os.path.join(self.output_folder, "labels.png"))
-        plt.close()
-
-        fig, axs = plt.subplots(2, figsize=(6, 12))
-        img_ax = axs[0].imshow(diff_loss)
-        axs[0].axis("off")
-        axs[0].set_title("Diff loss")
-        fig.colorbar(img_ax, ax=axs[0])
-
-        img_ax = axs[1].imshow(diff_loss * X_exist)
-        axs[1].axis("off")
-        axs[1].set_title("Diff loss (Real Image)")
-        fig.colorbar(img_ax, ax=axs[1])
-
-        plt.savefig(os.path.join(self.output_folder, "diff_loss.png"))
-        plt.close()
-
-
-    def _add_image_points_to_plot(self, axs):
-        shape = axs.shape
+    def _add_image_points_to_plot(self, ax, add_center=True):
         for dir in [self.direction1, self.direction2]:
             for point, c in dir.get_points():
                 x = ((point - self.origin) * self.direction1.direction).sum() / self.direction1.direction.norm()
@@ -181,39 +163,60 @@ class Polaroid:
                 if x_i >= self.steps or y_i >= self.steps:
                     continue
                 
-                for i in range(shape[0]):
-                    for j in range(shape[1]):
-                        axs[i, j].scatter(x_i, y_i, color=c, s=5 * self.top_plot, marker="1")
-        return axs
+                ax.scatter(x_i, y_i, color="black", s=50, marker="o")
+
+        for point, c in self.extra_point_to_plot:
+            point = point.to(self.device)
+            x = ((point - self.origin) * self.direction1.direction).sum() / self.direction1.direction.norm()
+            y = ((point - self.origin) * self.direction2.direction).sum() / self.direction2.direction.norm()
+            x_i = math.floor(x / self.dataset.step_size + self.steps / 2)
+            y_i = math.floor(y / self.dataset.step_size + self.steps / 2)
+            if x_i >= self.steps or y_i >= self.steps:
+                continue
+            
+            ax.scatter(x_i, y_i, color=c, s=50, marker="1")
+        return ax
     
 
     def _plot_unique(self, labels, losses, X_exist):
-        output_unique = os.path.join(self.output_folder, "uniques")
-        os.makedirs(output_unique, exist_ok=True)
+        set_labels = set(labels.flatten())
+        for l in set_labels:
+            if l not in self.dict_label_color:
+                self.dict_label_color[l] = self._list_possible_labels_colors[len(self.dict_label_color)]
 
+        colors = ["white"]
+        bounds = [-5000]
+        for l in sorted(list(self.dict_label_color.keys())):
+            colors.append(self.dict_label_color[l])
+            bounds.append(l - 0.5)
+        cmap = mpl.colors.ListedColormap(colors)
+        norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
+    
         for i in range(self.top_plot):
-            plt.figure(figsize=(6, 6))
-            plt.imshow(labels[:, :, i], cmap="tab20c")
+            _, ax = plt.subplots(figsize=(6, 6))
+            ax.imshow(labels[:, :, i], cmap=cmap, norm=norm)
+            ax = self._add_image_points_to_plot(ax)
             plt.axis("off")
-            plt.savefig(os.path.join(output_unique, "label_{}.png".format(i)))
+            plt.savefig(os.path.join(self.output_folder_plot, "label_{}.png".format(i)))
             plt.close()
 
             plt.figure(figsize=(6, 6))
-            plt.imshow(losses[:, :, i])
-            plt.axis("off")
+            plt.imshow(losses[:, :, i], vmin=0, vmax=1, cmap=cmap_loss)
             plt.colorbar()
-            plt.savefig(os.path.join(output_unique, "loss_{}.png".format(i)))
+            plt.axis("off")
+            plt.savefig(os.path.join(self.output_folder_plot, "loss_{}.png".format(i)))
+            plt.close()
+
+            _, ax = plt.subplots(figsize=(6, 6))
+            ax.imshow(labels[:, :, i] * X_exist, cmap=cmap, norm=norm)
+            ax = self._add_image_points_to_plot(ax)
+            plt.axis("off")
+            plt.savefig(os.path.join(self.output_folder_plot, "label_{}_real.png".format(i)))
             plt.close()
 
             plt.figure(figsize=(6, 6))
-            plt.imshow(labels[:, :, i] * X_exist, cmap="tab20c")
-            plt.axis("off")
-            plt.savefig(os.path.join(output_unique, "label_{}_real.png".format(i)))
-            plt.close()
-
-            plt.figure(figsize=(6, 6))
-            plt.imshow(losses[:, :, i] * X_exist)
-            plt.axis("off")
+            plt.imshow(losses[:, :, i] * X_exist, vmin=0, vmax=1, cmap=cmap_loss)
             plt.colorbar()
-            plt.savefig(os.path.join(output_unique, "loss_{}_real.png".format(i)))
+            plt.axis("off")
+            plt.savefig(os.path.join(self.output_folder_plot, "loss_{}_real.png".format(i)))
             plt.close()
